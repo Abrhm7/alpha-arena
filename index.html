@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Alpha Arena v3 · XAUUSD Scalper</title>
+<title>Abrhm7_FX · XAUUSD Scalper</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -142,9 +142,88 @@ body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-track{background:var(--bg2)}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* ── LOGIN OVERLAY ─────────────────────────────── */
+#loginOverlay{
+  position:fixed;inset:0;z-index:9999;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+}
+#loginBox{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--rl);padding:36px 32px;min-width:300px;
+  display:flex;flex-direction:column;gap:14px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+#loginBox .logo-row{justify-content:center;margin-bottom:4px}
+#loginBox h2{text-align:center;font-size:14px;font-family:var(--sans);color:var(--text2);font-weight:400;letter-spacing:.05em}
+#loginBox input[type=password]{
+  background:var(--bg3);border:1px solid var(--border);
+  color:var(--text);padding:10px 12px;border-radius:var(--rr);
+  font-family:var(--mono);font-size:13px;outline:none;width:100%;
+  transition:border-color .2s;
+}
+#loginBox input[type=password]:focus{border-color:var(--b)}
+#loginBox .btn-login{
+  background:var(--b);color:#fff;border:none;
+  padding:10px;border-radius:var(--rr);font-size:13px;
+  font-family:var(--sans);font-weight:600;cursor:pointer;
+  letter-spacing:.04em;transition:opacity .2s;
+}
+#loginBox .btn-login:hover{opacity:.85}
+#loginErrMsg{color:var(--rt);font-size:11px;text-align:center;min-height:16px}
+#loginBox .hint{font-size:10px;color:var(--text3);text-align:center}
+
+
+/* ── VERSE ─────────────────────────────────────── */
+.verse{
+  font-size:10px;color:var(--text3);text-align:center;
+  line-height:1.7;padding:10px 4px 0;
+  border-top:1px solid var(--border);
+  font-style:italic;font-family:var(--sans);
+}
+.verse-ref{
+  font-style:normal;font-size:9px;
+  color:var(--bt);letter-spacing:.08em;
+  font-family:var(--mono);
+}
+.footer-verse{
+  text-align:center;padding:18px 0 8px;
+  font-size:10px;color:var(--text3);
+  font-style:italic;font-family:var(--sans);
+  line-height:1.8;border-top:1px solid var(--border);
+  margin-top:8px;
+}
+.footer-verse .verse-ref{
+  display:block;margin-top:4px;
+  font-style:normal;color:var(--bt);
+  font-size:9px;letter-spacing:.1em;font-family:var(--mono);
+}
+
 </style>
 </head>
 <body>
+
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay">
+  <div id="loginBox">
+    <div class="logo-row">
+      <div class="logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div><div class="bname">Abrhm7_FX</div><div class="bsub">XAUUSD · by Abraham</div></div>
+    </div>
+    <h2>Masukkan password untuk melanjutkan</h2>
+    <input type="password" id="loginPass" placeholder="Password..." onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button class="btn-login" onclick="doLogin()">MASUK</button>
+    <div id="loginErrMsg"></div>
+    <div class="hint">🔒 Sesi tersimpan di browser ini</div>
+    <div class="verse">"Tetapi haruslah engkau ingat kepada TUHAN, Allahmu, sebab Dialah yang memberikan kepadamu kekuatan untuk memperoleh kekayaan..."<br><span class="verse-ref">— Ulangan 8:18</span></div>
+  </div>
+</div>
+
 
 <!-- HEADER -->
 <div class="hdr">
@@ -156,7 +235,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12
       </svg>
     </div>
     <div>
-      <div class="bname">Alpha Arena <span style="font-size:11px;color:var(--bt);font-weight:400">v3</span></div>
+      <div class="bname">Abrhm7_FX <span style="font-size:11px;color:var(--bt);font-weight:400">v3</span></div>
       <div class="bsub">XAUUSDm · Cent Account · HFM · Live OHLC + Pattern AI</div>
     </div>
   </div>
@@ -346,7 +425,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12
 </div>
 
 <div class="footer">
-  Alpha Arena v3 · Live OHLC Feed · Pattern Detection · DeepSeek deepseek-chat · Akun Cent HFM · bukan financial advice
+  Abrhm7_FX · Live OHLC Feed · Pattern Detection · DeepSeek deepseek-chat · Akun Cent HFM · bukan financial advice
 </div>
 
 <script>
@@ -1151,6 +1230,54 @@ setInterval(fetchMarket, 5000);
 
 // MT5 status tiap 5 detik
 setInterval(refreshMT5, 5000);
+
+// ── AUTH ────────────────────────────────────────────
+const AUTH_KEY  = 'aa_auth';
+const PASS_HASH = '9d49043470c6e35145c5441abcd59fff17a5182763f51e260cec2fad63448fc7'; // ganti password di sini (sha256)
+
+function sha256(str) {
+  // Gunakan SubtleCrypto untuk hash di browser
+  const buf = new TextEncoder().encode(str);
+  return crypto.subtle.digest('SHA-256', buf).then(b => {
+    return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+  });
+}
+
+async function doLogin() {
+  const pass = document.getElementById('loginPass').value;
+  if (!pass) return;
+  const hash = await sha256(pass);
+  if (hash === PASS_HASH) {
+    sessionStorage.setItem(AUTH_KEY, '1');
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('loginPass').value = '';
+  } else {
+    const err = document.getElementById('loginErrMsg');
+    err.textContent = 'Password salah, coba lagi.';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginPass').focus();
+    setTimeout(() => err.textContent = '', 3000);
+  }
+}
+
+function checkAuth() {
+  if (sessionStorage.getItem(AUTH_KEY) === '1') {
+    document.getElementById('loginOverlay').style.display = 'none';
+  } else {
+    document.getElementById('loginOverlay').style.display = 'flex';
+    setTimeout(() => document.getElementById('loginPass').focus(), 100);
+  }
+}
+
+checkAuth();
+
 </script>
+
+<!-- FOOTER VERSE -->
+<div class="footer-verse">
+  "Tetapi haruslah engkau ingat kepada TUHAN, Allahmu, sebab Dialah yang memberikan kepadamu kekuatan untuk memperoleh kekayaan..."
+  <span class="verse-ref">Ulangan 8:18</span>
+</div>
+
 </body>
 </html>
