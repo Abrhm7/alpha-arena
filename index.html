@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QUANT AI — Live Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:        #020c18;
+    --bg2:       #041628;
+    --bg3:       #071e35;
+    --card:      #081f36;
+    --border:    #0d3a5e;
+    --cyan:      #00d4ff;
+    --cyan2:     #00a8cc;
+    --cyan-dim:  rgba(0,212,255,0.12);
+    --cyan-glow: rgba(0,212,255,0.35);
+    --green:     #00ff88;
+    --red:       #ff3b5c;
+    --gold:      #ffd166;
+    --text:      #c8e8ff;
+    --muted:     #4a7a9b;
+    --mono:      'Share Tech Mono', monospace;
+    --display:   'Orbitron', sans-serif;
+    --body:      'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Animated grid background ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: -40%; left: -20%;
+    width: 70%; height: 70%;
+    background: radial-gradient(ellipse, rgba(0,120,200,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Layout ── */
+  .wrap { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 20px 60px; }
+
+  /* ── Header ── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 28px 0 24px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap; gap: 16px;
+  }
+
+  .logo {
+    font-family: var(--display);
+    font-size: clamp(18px, 3vw, 26px);
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    color: var(--cyan);
+    text-shadow: 0 0 20px var(--cyan-glow);
+  }
+  .logo span { color: var(--gold); }
+
+  .header-right { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+
+  /* ── Bot status pill ── */
+  .status-pill {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 999px; padding: 6px 16px;
+    font-family: var(--mono); font-size: 13px;
+  }
+  .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.4s;
+  }
+  .dot.alive {
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+  }
+  .dot.dead { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.6; transform: scale(0.85); }
+  }
+
+  /* ── Tunnel config ── */
+  .tunnel-bar {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 20px;
+    display: flex; align-items: center; gap: 12px;
+    margin: 22px 0 28px; flex-wrap: wrap;
+  }
+  .tunnel-bar label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .tunnel-bar input {
+    flex: 1; min-width: 260px;
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--cyan); font-family: var(--mono); font-size: 13px;
+    border-radius: 6px; padding: 8px 14px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .tunnel-bar input:focus { border-color: var(--cyan); }
+  .tunnel-bar input::placeholder { color: var(--muted); }
+  .btn-save {
+    background: var(--cyan); color: var(--bg); border: none;
+    font-family: var(--display); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.1em; border-radius: 6px; padding: 9px 20px;
+    cursor: pointer; transition: opacity 0.2s; white-space: nowrap;
+  }
+  .btn-save:hover { opacity: 0.85; }
+
+  /* ── Grid of stat cards ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 14px; margin-bottom: 24px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px 22px;
+    position: relative; overflow: hidden;
+    transition: border-color 0.3s, transform 0.2s;
+    animation: fadeUp 0.5s both;
+  }
+  .card:hover { border-color: var(--cyan2); transform: translateY(-2px); }
+
+  .card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: 0.5;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .card-label {
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 10px;
+  }
+  .card-value {
+    font-family: var(--mono); font-size: clamp(22px, 3vw, 30px);
+    font-weight: 400; color: var(--cyan);
+    line-height: 1;
+  }
+  .card-sub {
+    font-size: 12px; color: var(--muted); margin-top: 6px;
+    font-family: var(--mono);
+  }
+
+  .card-value.green { color: var(--green); }
+  .card-value.red   { color: var(--red); }
+  .card-value.gold  { color: var(--gold); }
+
+  /* ── Position badge ── */
+  .pos-badge {
+    display: inline-block;
+    padding: 4px 14px; border-radius: 6px;
+    font-family: var(--display); font-size: 14px; font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+  .pos-LONG  { background: rgba(0,255,136,0.15); color: var(--green); border: 1px solid var(--green); }
+  .pos-SHORT { background: rgba(255,59,92,0.15);  color: var(--red);   border: 1px solid var(--red); }
+  .pos-FLAT  { background: rgba(0,212,255,0.08);  color: var(--muted); border: 1px solid var(--border); }
+
+  /* ── Bottom grid ── */
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 860px) { .bottom-grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px;
+  }
+  .panel-title {
+    font-family: var(--display); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--cyan); margin-bottom: 18px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .panel-title::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(90deg, var(--border), transparent);
+  }
+
+  /* ── Equity chart ── */
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* ── Trade log table ── */
+  .trade-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .trade-table th {
+    text-align: left; padding: 6px 10px;
+    color: var(--muted); font-weight: 400; letter-spacing: 0.08em;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px;
+  }
+  .trade-table td {
+    padding: 9px 10px; border-bottom: 1px solid rgba(13,58,94,0.4);
+    font-family: var(--mono); font-size: 12px;
+    vertical-align: middle;
+  }
+  .trade-table tr:last-child td { border-bottom: none; }
+  .trade-table tr:hover td { background: rgba(0,212,255,0.04); }
+
+  .side-BUY  { color: var(--green); font-weight: 700; }
+  .side-SELL { color: var(--red);   font-weight: 700; }
+
+  .result-win  { color: var(--green); }
+  .result-loss { color: var(--red); }
+  .result-open { color: var(--gold); }
+
+  /* ── Last update bar ── */
+  .last-update {
+    text-align: right; font-family: var(--mono); font-size: 11px;
+    color: var(--muted); margin-top: 24px;
+  }
+
+  /* ── Loading skeleton ── */
+  .skeleton {
+    background: linear-gradient(90deg, var(--bg3) 25%, var(--bg2) 50%, var(--bg3) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px; display: inline-block;
+    width: 80px; height: 1em;
+  }
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ── Refresh bar ── */
+  .refresh-bar {
+    height: 2px; background: var(--border);
+    border-radius: 99px; overflow: hidden; margin-bottom: 20px;
+  }
+  .refresh-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--cyan2), var(--cyan));
+    border-radius: 99px;
+    transition: width 0.1s linear;
+  }
+
+  /* ── No data ── */
+  .no-data {
+    text-align: center; padding: 40px; color: var(--muted);
+    font-family: var(--mono); font-size: 13px;
+  }
+
+  /* responsive */
+  @media (max-width: 600px) {
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .card-value { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">QUANT<span>AI</span> &mdash; Live Monitor</div>
+    <div class="header-right">
+      <div style="font-family:var(--mono);font-size:12px;color:var(--muted)">XAUUSD · M5 · Exness</div>
+      <div class="status-pill">
+        <div class="dot" id="bot-dot"></div>
+        <span id="bot-status-text">Connecting…</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Tunnel URL Config -->
+  <div class="tunnel-bar">
+    <label>🌐 CLOUDFLARE URL</label>
+    <input type="text" id="tunnel-url"
+           placeholder="https://xxxx.trycloudflare.com"
+           value="">
+    <button class="btn-save" onclick="saveUrl()">SAVE &amp; CONNECT</button>
+  </div>
+
+  <!-- Auto-refresh progress bar -->
+  <div class="refresh-bar"><div class="refresh-fill" id="rfill"></div></div>
+
+  <!-- Stat Cards -->
+  <div class="stats-grid">
+    <div class="card" style="animation-delay:0s">
+      <div class="card-label">Balance</div>
+      <div class="card-value" id="v-balance"><span class="skeleton"></span></div>
+      <div class="card-sub">Starting $500.00</div>
+    </div>
+    <div class="card" style="animation-delay:0.05s">
+      <div class="card-label">Equity</div>
+      <div class="card-value" id="v-equity"><span class="skeleton"></span></div>
+      <div class="card-sub" id="v-pnl-sub">Net PnL</div>
+    </div>
+    <div class="card" style="animation-delay:0.10s">
+      <div class="card-label">Win Rate</div>
+      <div class="card-value gold" id="v-winrate"><span class="skeleton"></span></div>
+      <div class="card-sub" id="v-trades-sub">trades</div>
+    </div>
+    <div class="card" style="animation-delay:0.15s">
+      <div class="card-label">Position</div>
+      <div id="v-position"><span class="skeleton"></span></div>
+      <div class="card-sub" id="v-action-sub">last action</div>
+    </div>
+    <div class="card" style="animation-delay:0.20s">
+      <div class="card-label">Price (XAUUSD)</div>
+      <div class="card-value" id="v-price"><span class="skeleton"></span></div>
+      <div class="card-sub" id="v-atr-sub">ATR —</div>
+    </div>
+    <div class="card" style="animation-delay:0.25s">
+      <div class="card-label">Spread</div>
+      <div class="card-value" id="v-spread"><span class="skeleton"></span></div>
+      <div class="card-sub">pips</div>
+    </div>
+  </div>
+
+  <!-- Bottom grid: chart + trade log -->
+  <div class="bottom-grid">
+
+    <!-- Equity Curve -->
+    <div class="panel">
+      <div class="panel-title">Equity Curve</div>
+      <div class="chart-wrap">
+        <canvas id="equity-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Trade Log -->
+    <div class="panel">
+      <div class="panel-title">Recent Trades</div>
+      <div style="overflow-x:auto; max-height:260px; overflow-y:auto;">
+        <table class="trade-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Side</th>
+              <th>Price</th>
+              <th>SL</th>
+              <th>TP</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody id="trade-tbody">
+            <tr><td colspan="6" class="no-data">Menunggu data…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="last-update">
+    Last update: <span id="last-ts">—</span> &nbsp;|&nbsp; Auto-refresh 15s
+  </div>
+
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────
+const REFRESH_INTERVAL = 15000; // ms
+let tunnelUrl   = '';
+let equityChart = null;
+let fillTimer   = null;
+let fillPct     = 0;
+
+// ── Init ──────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('quantai_tunnel');
+  if (saved) {
+    document.getElementById('tunnel-url').value = saved;
+    tunnelUrl = saved;
+  }
+  initChart();
+  if (tunnelUrl) fetchData();
+  setInterval(fetchData, REFRESH_INTERVAL);
+  startFillBar();
+});
+
+function saveUrl() {
+  const v = document.getElementById('tunnel-url').value.trim().replace(/\/$/, '');
+  if (!v) return;
+  localStorage.setItem('quantai_tunnel', v);
+  tunnelUrl = v;
+  fetchData();
+}
+
+// ── Refresh bar ───────────────────────────────────────────────
+function startFillBar() {
+  const fill = document.getElementById('rfill');
+  fillPct = 0;
+  clearInterval(fillTimer);
+  fillTimer = setInterval(() => {
+    fillPct += 100 / (REFRESH_INTERVAL / 100);
+    if (fillPct >= 100) fillPct = 0;
+    fill.style.width = fillPct + '%';
+  }, 100);
+}
+
+// ── Fetch ─────────────────────────────────────────────────────
+async function fetchData() {
+  if (!tunnelUrl) return;
+  try {
+    const res  = await fetch(tunnelUrl + '/api/status', { signal: AbortSignal.timeout(8000) });
+    const data = await res.json();
+    if (data.ok) render(data);
+    fillPct = 0;
+  } catch (e) {
+    setBotStatus(false);
+    console.warn('Fetch error:', e.message);
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────
+function render(d) {
+  setBotStatus(d.bot_running);
+
+  // Balance
+  const balEl = document.getElementById('v-balance');
+  balEl.className = 'card-value';
+  balEl.textContent = '$' + fmt2(d.balance);
+
+  // Equity
+  const eqEl = document.getElementById('v-equity');
+  const pnl  = d.pnl ?? (d.equity - 500);
+  eqEl.className = 'card-value ' + (pnl >= 0 ? 'green' : 'red');
+  eqEl.textContent = '$' + fmt2(d.equity);
+  document.getElementById('v-pnl-sub').textContent =
+    'PnL: ' + (pnl >= 0 ? '+' : '') + '$' + fmt2(pnl);
+
+  // Win Rate
+  document.getElementById('v-winrate').textContent = (d.win_rate ?? 0).toFixed(1) + '%';
+  document.getElementById('v-trades-sub').textContent = (d.total_trades ?? 0) + ' trades';
+
+  // Position
+  const pos = d.position ?? 'FLAT';
+  document.getElementById('v-position').innerHTML =
+    `<span class="pos-badge pos-${pos}">${pos}</span>`;
+  document.getElementById('v-action-sub').textContent =
+    'Action: ' + (d.last_action ?? '—');
+
+  // Price
+  document.getElementById('v-price').textContent = (d.price ?? 0).toFixed(3);
+  document.getElementById('v-atr-sub').textContent = 'ATR: ' + (d.atr ?? 0).toFixed(3);
+
+  // Spread
+  const spEl = document.getElementById('v-spread');
+  const sp   = d.spread ?? 0;
+  spEl.className = 'card-value ' + (sp > 15 ? 'red' : sp > 8 ? 'gold' : 'green');
+  spEl.textContent = sp.toFixed(1);
+
+  // Equity curve
+  if (d.equity_history && d.equity_history.length > 1) {
+    updateChart(d.equity_history);
+  }
+
+  // Trade log
+  renderTrades(d.recent_trades ?? []);
+
+  // Timestamp
+  document.getElementById('last-ts').textContent =
+    new Date().toLocaleTimeString('id-ID');
+}
+
+function setBotStatus(running) {
+  const dot  = document.getElementById('bot-dot');
+  const txt  = document.getElementById('bot-status-text');
+  dot.className = 'dot ' + (running ? 'alive' : 'dead');
+  txt.textContent = running ? 'BOT ONLINE' : 'BOT OFFLINE';
+}
+
+// ── Trade table ───────────────────────────────────────────────
+function renderTrades(trades) {
+  const tbody = document.getElementById('trade-tbody');
+  if (!trades || !trades.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="no-data">Belum ada trade</td></tr>';
+    return;
+  }
+  tbody.innerHTML = trades.map(t => {
+    const resClass = t.result === 'OPEN' ? 'result-open'
+                   : t.result?.startsWith('WIN') ? 'result-win' : 'result-loss';
+    return `<tr>
+      <td>${t.time?.slice(0,19) ?? '—'}</td>
+      <td class="side-${t.side}">${t.side}</td>
+      <td>${(t.price??0).toFixed(3)}</td>
+      <td>${(t.sl??0).toFixed(3)}</td>
+      <td>${(t.tp??0).toFixed(3)}</td>
+      <td class="${resClass}">${t.result}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Chart.js equity curve ─────────────────────────────────────
+function initChart() {
+  const ctx = document.getElementById('equity-chart').getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 220);
+  grad.addColorStop(0,   'rgba(0,212,255,0.25)');
+  grad.addColorStop(1,   'rgba(0,212,255,0.00)');
+
+  equityChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        data: [],
+        borderColor: '#00d4ff',
+        backgroundColor: grad,
+        borderWidth: 1.8,
+        pointRadius: 0,
+        fill: true,
+        tension: 0.3,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 400 },
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: {
+          grid: { color: 'rgba(13,58,94,0.6)' },
+          ticks: {
+            color: '#4a7a9b', font: { family: "'Share Tech Mono'", size: 11 },
+            callback: v => '$' + v.toFixed(0)
+          },
+          border: { color: 'transparent' },
+        }
+      }
+    }
+  });
+}
+
+function updateChart(history) {
+  equityChart.data.labels  = history.map((_, i) => i);
+  equityChart.data.datasets[0].data = history;
+  equityChart.update('none');
+}
+
+// ── Utils ─────────────────────────────────────────────────────
+function fmt2(n) { return (n ?? 0).toFixed(2); }
+</script>
+</body>
+</html>
